@@ -1,0 +1,28 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: deploy-backend-hpa
+  namespace: aws-study-board # [적용] 네임스페이스 추가
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: deploy-backend
+  minReplicas: 3
+  maxReplicas: 6
+  metrics:
+  # CPU 사용률 50%
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 40
+  # 메모리 사용률 70%
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 40
+

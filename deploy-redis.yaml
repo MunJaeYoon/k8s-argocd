@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: aws-study-board
+  labels:
+    app: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:6.2-alpine
+          ports:
+            - containerPort: 6379
+          
+          # [핵심 설정] Redis 내부 메모리 정책
+          # 설정 파일(redis.conf) 없이 명령어로 바로 적용하는 방식입니다.
+          # K8s가 죽이기 전에 Redis가 알아서 오래된 키를 지우도록 설정 (200MB 제한)
+          command: ["redis-server"]
+          args: 
+            - "--maxmemory" 
+            - "200mb" 
+            - "--maxmemory-policy" 
+            - "allkeys-lru"
+            - "--appendonly"
+            - "no"
+          
+          # [핵심 설정] K8s 리소스 제한
+          # 실제 파드에 할당될 물리적 자원 한계 (256MB)
+          # Redis 설정(200mb)보다 약간 여유를 둬야 OOM Kill을 피합니다.
+          resources:
+            requests:
+              memory: "300Mi"
+              cpu: "600m"
+            limits:
+              memory: "400Mi"
+              cpu: "800m"

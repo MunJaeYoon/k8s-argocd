@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deploy-backend
+  namespace: aws-study-board
+  labels:
+    app: backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      # [1] 토폴로지 분산: 노드 간 개수 차이를 1 이하로 칼같이 맞춰라 (수학적 분산)
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: backend
+
+      # [2] 안티 어피니티: 같은 파드가 있는 곳은 되도록 피해라 (물리적 거리두기)
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: backend
+                topologyKey: kubernetes.io/hostname
+
+      imagePullSecrets:
+        - name: ecr-secret
+
+      # (아래 Init Container, Containers 등은 기존과 동일)
+      initContainers:
+        - name: wait-for-redis
+          image: busybox:1.28
+          command: ["sh", "-c", "until nc -z redis-session-master 6379; do sleep 2; done;"]
+
+      containers:
+        - name: board-backend
+          image: 566644819993.dkr.ecr.ap-northeast-2.amazonaws.com/project_tomcat:final33
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          # ... (환경변수, 리소스, 프로브 설정 기존 유지) ...
+          env:
+            - name: REDIS_HOST
+              value: "redis-session-master"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: DB_URL
+              value: "jdbc:mariadb://10.0.2.125:3306/board_project_db?useUnicode=true&characterEncoding=UTF-8"
+            - name: DB_USER
+              value: "board_user"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-board-secret
+                  key: DB_PASSWORD
+            - name: LOGGING_LEVEL_COM_ZAXXER_HIKARI
+              value: "DEBUG"
+            - name: SPRING_DATASOURCE_HIKARI_LEAK_DETECTION_THRESHOLD
+              value: "2000"
+            - name: LOGGING_LEVEL_COM_ZAXXER_HIKARI_POOL_HIKARIPOOL
+              value: "DEBUG"
+            - name: LOGGING_LEVEL_ROOT
+              value: "DEBUG"
+          resources:
+            requests:
+              cpu: "400m"
+              memory: "600Mi"
+            limits:
+              cpu: "600m"
+              memory: "600Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 7
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 50
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 5
