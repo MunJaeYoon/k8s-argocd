@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webui
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: webui
+  template:
+    metadata:
+      name: nginx-pod
+      labels:
+        app: webui
+    spec:
+      containers:
+        - name: nginx-container
+          image: 595362810845.dkr.ecr.ap-northeast-2.amazonaws.com/eks-nginx:v1.0
+      tolerations:
+        - key: "role"
+          operator: "Equal"
+          value: "web"
+          effect: "NoSchedule"
