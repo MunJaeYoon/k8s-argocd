@@ -1,23 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: webui
+  labels:
+    app: eks-nginx
+  name: eks-nginx
 spec:
   replicas: 4
   selector:
     matchLabels:
-      app: webui
+      app: eks-nginx
   template:
     metadata:
-      name: nginx-pod
       labels:
-        app: webui
+        app: eks-nginx
     spec:
       containers:
-        - name: nginx-container
-          image: 595362810845.dkr.ecr.ap-northeast-2.amazonaws.com/eks-nginx:v1.0
-      tolerations:
-        - key: "role"
-          operator: "Equal"
-          value: "web"
-          effect: "NoSchedule"
+      - image: powermvp/netflix:v1.0
+
+        name: eks-nginx
